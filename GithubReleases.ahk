@@ -115,11 +115,11 @@ Class GithubReleases{
     }
 
     GetInfo(){
-        response := GetPageContent(this.url)
+        response := _GetPageContent(this.url)
         if response == "" or (not InStr(response, this.user) and not InStr(response, this.repo))
             throw Error("GetInfo failed to get information from the repository")
 
-        FileOverwrite(response, this.jsonPath)
+        _FileOverwrite(response, this.jsonPath)
         this.is_online := true
     }
 
@@ -219,7 +219,7 @@ Class GithubReleases{
 
     GetJsonMap(){
         jao := FileRead(this.jsonPath, "UTF-8")
-        return Jxon_Load(&jao)
+        return _Jxon_Load(&jao)
     }
 }
 
@@ -236,7 +236,7 @@ Downloads the page's content and returns it. Not Async.
 @Param p_url The url for the page.
 @Return The page's content.
 */
-GetPageContent(p_url)
+_GetPageContent(p_url)
 {
     page := ComObject("MSXML2.XMLHTTP.6.0")
     page.Open("GET", p_url, true)
@@ -262,12 +262,12 @@ GetPageContent(p_url)
     return page.ResponseText
 }
 
-FileOverwrite(text, file_pattern){
+_FileOverwrite(text, file_pattern){
     try{
         FileDelete(file_pattern)
     } catch Error as e{
         if e.Message == "Parameter #1 of FileDelete is invalid."
-            throw Error("Parameter #1 of FileOverwrite is invalid.")
+            throw Error("Parameter #1 of _FileOverwrite is invalid.")
     }
     try{
         FileAppend(text, file_pattern, "UTF-8")
@@ -286,7 +286,7 @@ originally posted by user coco on AutoHotkey.com
 https://github.com/cocobelgica/AutoHotkey-JSON
 */
 
-Jxon_Load(&src, args*) {
+_Jxon_Load(&src, args*) {
     key := "", is_key := false
     stack := [tree := []]
     next := '"{[01234567890-tfn'
@@ -395,7 +395,7 @@ Jxon_Load(&src, args*) {
     return tree[1]
 }
 
-Jxon_Dump(obj, indent := "", lvl := 1) {
+_Jxon_Dump(obj, indent := "", lvl := 1) {
     if IsObject(obj) {
         If !(obj is Array || obj is Map || obj is String || obj is Number)
             throw Error("Object type not supported.", -1, Format("<Object at 0x{:p}>", ObjPtr(obj)))
@@ -422,9 +422,9 @@ Jxon_Dump(obj, indent := "", lvl := 1) {
                 throw Error("Invalid object key.", -1, k ? Format("<Object at 0x{:p}>", ObjPtr(obj)) : "<blank>")
 
             if !is_array ;// key ; ObjGetCapacity([k], 1)
-                out .= (ObjGetCapacity([k]) ? Jxon_Dump(k) : escape_str(k)) (indent ? ": " : ":") ; token + padding
+                out .= (ObjGetCapacity([k]) ? _Jxon_Dump(k) : escape_str(k)) (indent ? ": " : ":") ; token + padding
 
-            out .= Jxon_Dump(v, indent, lvl) ; value
+            out .= _Jxon_Dump(v, indent, lvl) ; value
                 . (indent ? ",`n" . indt : ",") ; token + indent
         }
 
