@@ -1,4 +1,109 @@
-#Include <Bruno-Functions\ImportAllList>
+/*
+Author: TheBrunoCA
+Github: https://github.com/TheBrunoCA
+Original repository: https://github.com/TheBrunoCA/GithubReleases
+*/
+
+/*
+Useful AHK v2 script for getting releases info.
+*/
+
+
+
+;---------Examples-----------
+
+/*
+    Creating the class object
+
+username := "TheBrunoCA"
+repository := "BuscaPMC"
+git := GithubReleases(username, repository)
+
+
+
+/*
+    Get the releases info from "https://api.github.com/repos/username/repository/releases"
+    and saves it into a Json on the A_Temp folder
+
+git.GetInfo()
+
+
+
+/*
+    Reads the json file, converts to a Array with Maps, and returns it.
+
+json_map := git.GetJsonMap()
+
+
+
+/*
+    Returns a list of releases from the saved json.
+    set "pre_release" to false to not get releases tagged as "prerelease".
+
+    if "online_only" is set to true, GetInfo() must have been called at least once before it, else
+    the json file will be used even if it is from another session as long as it exists.
+
+releases_array := git.GetListOfReleases(pre_release := false, online_only := false)
+
+
+
+/*
+    Returns the latest release from the json file.
+    set "pre_release" to false to not get a release tagged as "prerelease".
+
+    if "online_only" is set to true, GetInfo() must have been called at least once before it, else
+    the json file will be used even if it is from another session as long as it exists.
+
+    This is just a Qol method, the same could be achieved with "GetListOfReleases()[1]"
+    but optimized so as to not get every release before returning.
+
+release := git.GetLatestRelease(pre_release := false, online_only := false)
+
+
+
+/*
+    Returns the latest release download url from the json file.
+    set "pre_release" to false to not get a release tagged as "prerelease".
+
+    if "online_only" is set to true, GetInfo() must have been called at least once before it, else
+    the json file will be used even if it is from another session as long as it exists.
+
+    This is just a Qol method, the same could be achieved with "GetLatestRelease()["download_url"]"
+    but optimized so as to not get every release's info before returning.
+
+release := git.GetLatestReleaseDownloadUrl(pre_release := false, online_only := false)
+
+
+
+/*
+    Returns the latest release version from the json file.
+    set "pre_release" to false to not get a release tagged as "prerelease".
+
+    if "online_only" is set to true, GetInfo() must have been called at least once before it, else
+    the json file will be used even if it is from another session as long as it exists.
+
+    This is just a Qol method, the same could be achieved with "GetLatestRelease()["tag_name"]"
+    but optimized so as to not get every release's info before returning.
+
+release := git.GetLatestReleaseVersion(pre_release := false, online_only := false)
+
+
+
+/*
+    Returns True or 1 if "current_version" is equal or higher than the latest release tag_name.
+    set "pre_release" to false to not get a release tagged as "prerelease".
+
+    if "online_only" is set to true, GetInfo() must have been called at least once before it, else
+    the json file will be used even if it is from another session as long as it exists.
+
+    This is just a Qol method, the same could be achieved with:
+    "VerCompare(current_version, GetLatestRelease()["tag_name"]) >= 0"
+
+release := git.IsUpToDate(current_version, pre_release := false, online_only := false)
+*/
+
+;---------End of Examples-----------
+
 
 Class GithubReleases{
     __New(user, repo) {
@@ -29,7 +134,7 @@ Class GithubReleases{
             if json[A_Index]["prerelease"] and not pre_release
                 continue
 
-            releases.Push(this.GetReleaseMap(json[A_Index]))
+            releases.Push(this._GetReleaseMap(json[A_Index]))
         }
         if releases.Has(1)
             return releases
@@ -46,23 +151,41 @@ Class GithubReleases{
         loop json.Length{
             if json[A_Index]["prerelease"]
                 continue
-            return this.GetReleaseMap(json[A_Index])
+            return this._GetReleaseMap(json[A_Index])
         }
     }
 
     GetLatestReleaseDownloadUrl(pre_release := false, online_only := false){
-        return this.GetLatestRelease(pre_release, online_only)["download_url"]
+        if (online_only and this.is_online == false) or not FileExist(this.jsonPath)
+            throw Error("The json is not updated or do not exist. Turn online_only to false or use GetInfo() first.")
+
+        json := this.GetJsonMap()
+
+        loop json.Length{
+            if json[A_Index]["prerelease"]
+                continue
+            return json[A_Index]["assets"][1]["browser_download_url"]
+        }
     }
 
     GetLatestReleaseVersion(pre_release := false, online_only := false){
-        return this.GetLatestRelease(pre_release, online_only)["tag_name"]
+        if (online_only and this.is_online == false) or not FileExist(this.jsonPath)
+            throw Error("The json is not updated or do not exist. Turn online_only to false or use GetInfo() first.")
+
+        json := this.GetJsonMap()
+
+        loop json.Length{
+            if json[A_Index]["prerelease"]
+                continue
+            return json[A_Index]["tag_name"]
+        }
     }
 
     IsUpToDate(current_version, pre_release := false, online_only := false){
         return VerCompare(current_version, this.GetLatestReleaseVersion(pre_release, online_only)) >= 0
     }
 
-    GetReleaseMap(release_map){
+    _GetReleaseMap(release_map){
         release := Map()
             release["id"]               := release_map["id"]
             release["assets_url"]       := release_map["assets_url"]
@@ -97,5 +220,237 @@ Class GithubReleases{
     GetJsonMap(){
         jao := FileRead(this.jsonPath, "UTF-8")
         return Jxon_Load(&jao)
+    }
+}
+
+
+; --------Dependencies------------
+/*
+Author: TheBrunoCA
+Github: https://github.com/TheBrunoCA
+Original repository: https://github.com/TheBrunoCA/Bruno-Functions
+*/
+
+/*
+Downloads the page's content and returns it. Not Async.
+@Param p_url The url for the page.
+@Return The page's content.
+*/
+GetPageContent(p_url)
+{
+    page := ComObject("MSXML2.XMLHTTP.6.0")
+    page.Open("GET", p_url, true)
+
+    loop 10 {
+        try {
+            page.Send()
+            while (page.readyState != 4)
+            {
+                Sleep(50)
+            }
+            break
+        }
+        catch Error as e {
+            if InStr(e.Message, "(0x80070005)") {
+                sleep 50
+                continue
+            }
+            else
+                throw e
+        }
+    }
+    return page.ResponseText
+}
+
+FileOverwrite(text, file_pattern){
+    try{
+        FileDelete(file_pattern)
+    } catch Error as e{
+        if e.Message == "Parameter #1 of FileDelete is invalid."
+            throw Error("Parameter #1 of FileOverwrite is invalid.")
+    }
+    try{
+        FileAppend(text, file_pattern, "UTF-8")
+    }
+}
+
+/*
+AHK v2 - https://github.com/TheArkive/JXON_ahk2
+MIT License
+Copyright (c) 2021 TheArkive
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+originally posted by user coco on AutoHotkey.com
+https://github.com/cocobelgica/AutoHotkey-JSON
+*/
+
+Jxon_Load(&src, args*) {
+    key := "", is_key := false
+    stack := [tree := []]
+    next := '"{[01234567890-tfn'
+    pos := 0
+
+    while ((ch := SubStr(src, ++pos, 1)) != "") {
+        if InStr(" `t`n`r", ch)
+            continue
+        if !InStr(next, ch, true) {
+            testArr := StrSplit(SubStr(src, 1, pos), "`n")
+
+            ln := testArr.Length
+            col := pos - InStr(src, "`n", , -(StrLen(src) - pos + 1))
+
+            msg := Format("{}: line {} col {} (char {})"
+                , (next == "") ? ["Extra data", ch := SubStr(src, pos)][1]
+                : (next == "'") ? "Unterminated string starting at"
+                    : (next == "\") ? "Invalid \escape"
+                    : (next == ":") ? "Expecting ':' delimiter"
+                    : (next == '"') ? "Expecting object key enclosed in double quotes"
+                    : (next == '"}') ? "Expecting object key enclosed in double quotes or object closing '}'"
+                    : (next == ",}") ? "Expecting ',' delimiter or object closing '}'"
+                    : (next == ",]") ? "Expecting ',' delimiter or array closing ']'"
+                    : ["Expecting JSON value(string, number, [true, false, null], object or array)"
+                        , ch := SubStr(src, pos, (SubStr(src, pos) ~= "[\]\},\s]|$") - 1)][1]
+                , ln, col, pos)
+
+            throw Error(msg, -1, ch)
+        }
+
+        obj := stack[1]
+        is_array := (obj is Array)
+
+        if i := InStr("{[", ch) { ; start new object / map?
+            val := (i = 1) ? Map() : Array()	; ahk v2
+
+            is_array ? obj.Push(val) : obj[key] := val
+            stack.InsertAt(1, val)
+
+            next := '"' ((is_key := (ch == "{")) ? "}" : "{[]0123456789-tfn")
+        } else if InStr("}]", ch) {
+            stack.RemoveAt(1)
+            next := (stack[1] == tree) ? "" : (stack[1] is Array) ? ",]" : ",}"
+        } else if InStr(",:", ch) {
+            is_key := (!is_array && ch == ",")
+            next := is_key ? '"' : '"{[0123456789-tfn'
+        } else { ; string | number | true | false | null
+            if (ch == '"') { ; string
+                i := pos
+                while i := InStr(src, '"', , i + 1) {
+                    val := StrReplace(SubStr(src, pos + 1, i - pos - 1), "\\", "\u005C")
+                    if (SubStr(val, -1) != "\")
+                        break
+                }
+                if !i ? (pos--, next := "'") : 0
+                    continue
+
+                pos := i ; update pos
+
+                val := StrReplace(val, "\/", "/")
+                val := StrReplace(val, '\"', '"')
+                    , val := StrReplace(val, "\b", "`b")
+                    , val := StrReplace(val, "\f", "`f")
+                    , val := StrReplace(val, "\n", "`n")
+                    , val := StrReplace(val, "\r", "`r")
+                    , val := StrReplace(val, "\t", "`t")
+
+                i := 0
+                while i := InStr(val, "\", , i + 1) {
+                    if (SubStr(val, i + 1, 1) != "u") ? (pos -= StrLen(SubStr(val, i)), next := "\") : 0
+                        continue 2
+
+                    xxxx := Abs("0x" . SubStr(val, i + 2, 4)) ; \uXXXX - JSON unicode escape sequence
+                    if (xxxx < 0x100)
+                        val := SubStr(val, 1, i - 1) . Chr(xxxx) . SubStr(val, i + 6)
+                }
+
+                if is_key {
+                    key := val, next := ":"
+                    continue
+                }
+            } else { ; number | true | false | null
+                val := SubStr(src, pos, i := RegExMatch(src, "[\]\},\s]|$", , pos) - pos)
+
+                if IsInteger(val)
+                    val += 0
+                else if IsFloat(val)
+                    val += 0
+                else if (val == "true" || val == "false")
+                    val := (val == "true")
+                else if (val == "null")
+                    val := ""
+                else if is_key {
+                    pos--, next := "#"
+                    continue
+                }
+
+                pos += i - 1
+            }
+
+            is_array ? obj.Push(val) : obj[key] := val
+            next := obj == tree ? "" : is_array ? ",]" : ",}"
+        }
+    }
+
+    return tree[1]
+}
+
+Jxon_Dump(obj, indent := "", lvl := 1) {
+    if IsObject(obj) {
+        If !(obj is Array || obj is Map || obj is String || obj is Number)
+            throw Error("Object type not supported.", -1, Format("<Object at 0x{:p}>", ObjPtr(obj)))
+
+        if IsInteger(indent)
+        {
+            if (indent < 0)
+                throw Error("Indent parameter must be a postive integer.", -1, indent)
+            spaces := indent, indent := ""
+
+            Loop spaces ; ===> changed
+                indent .= " "
+        }
+        indt := ""
+
+        Loop indent ? lvl : 0
+            indt .= indent
+
+        is_array := (obj is Array)
+
+        lvl += 1, out := "" ; Make #Warn happy
+        for k, v in obj {
+            if IsObject(k) || (k == "")
+                throw Error("Invalid object key.", -1, k ? Format("<Object at 0x{:p}>", ObjPtr(obj)) : "<blank>")
+
+            if !is_array ;// key ; ObjGetCapacity([k], 1)
+                out .= (ObjGetCapacity([k]) ? Jxon_Dump(k) : escape_str(k)) (indent ? ": " : ":") ; token + padding
+
+            out .= Jxon_Dump(v, indent, lvl) ; value
+                . (indent ? ",`n" . indt : ",") ; token + indent
+        }
+
+        if (out != "") {
+            out := Trim(out, ",`n" . indent)
+            if (indent != "")
+                out := "`n" . indt . out . "`n" . SubStr(indt, StrLen(indent) + 1)
+        }
+
+        return is_array ? "[" . out . "]" : "{" . out . "}"
+
+    } Else If (obj is Number)
+        return obj
+    Else ; String
+        return escape_str(obj)
+
+    escape_str(obj) {
+        obj := StrReplace(obj, "\", "\\")
+        obj := StrReplace(obj, "`t", "\t")
+        obj := StrReplace(obj, "`r", "\r")
+        obj := StrReplace(obj, "`n", "\n")
+        obj := StrReplace(obj, "`b", "\b")
+        obj := StrReplace(obj, "`f", "\f")
+        obj := StrReplace(obj, "/", "\/")
+        obj := StrReplace(obj, '"', '\"')
+
+        return '"' obj '"'
     }
 }
