@@ -8,8 +8,6 @@ Original repository: https://github.com/TheBrunoCA/GithubReleases
 Useful AHK v2 script for getting releases info.
 */
 
-
-
 ;---------Examples-----------
 
 /*
@@ -19,85 +17,17 @@ username := "TheBrunoCA"
 repository := "BuscaPMC"
 git := GithubReleases(username, repository)
 
-
-
-/*
-    Get the releases info from "https://api.github.com/repos/username/repository/releases"
-    and saves it into a Json on the A_Temp folder
-
 git.GetInfo()
-
-
-
-/*
-    Reads the json file, converts to a Array with Maps, and returns it.
 
 json_map := git.GetJsonMap()
 
-
-
-/*
-    Returns a list of releases from the saved json.
-    set "pre_release" to false to not get releases tagged as "prerelease".
-
-    if "online_only" is set to true, GetInfo() must have been called at least once before it, else
-    the json file will be used even if it is from another session as long as it exists.
-
 releases_array := git.GetListOfReleases(pre_release := false, online_only := false)
-
-
-
-/*
-    Returns the latest release from the json file.
-    set "pre_release" to false to not get a release tagged as "prerelease".
-
-    if "online_only" is set to true, GetInfo() must have been called at least once before it, else
-    the json file will be used even if it is from another session as long as it exists.
-
-    This is just a Qol method, the same could be achieved with "GetListOfReleases()[1]"
-    but optimized so as to not get every release before returning.
 
 release := git.GetLatestRelease(pre_release := false, online_only := false)
 
-
-
-/*
-    Returns the latest release download url from the json file.
-    set "pre_release" to false to not get a release tagged as "prerelease".
-
-    if "online_only" is set to true, GetInfo() must have been called at least once before it, else
-    the json file will be used even if it is from another session as long as it exists.
-
-    This is just a Qol method, the same could be achieved with "GetLatestRelease()["download_url"]"
-    but optimized so as to not get every release's info before returning.
-
 release := git.GetLatestReleaseDownloadUrl(pre_release := false, online_only := false)
 
-
-
-/*
-    Returns the latest release version from the json file.
-    set "pre_release" to false to not get a release tagged as "prerelease".
-
-    if "online_only" is set to true, GetInfo() must have been called at least once before it, else
-    the json file will be used even if it is from another session as long as it exists.
-
-    This is just a Qol method, the same could be achieved with "GetLatestRelease()["tag_name"]"
-    but optimized so as to not get every release's info before returning.
-
 release := git.GetLatestReleaseVersion(pre_release := false, online_only := false)
-
-
-
-/*
-    Returns True or 1 if "current_version" is equal or higher than the latest release tag_name.
-    set "pre_release" to false to not get a release tagged as "prerelease".
-
-    if "online_only" is set to true, GetInfo() must have been called at least once before it, else
-    the json file will be used even if it is from another session as long as it exists.
-
-    This is just a Qol method, the same could be achieved with:
-    "VerCompare(current_version, GetLatestRelease()["tag_name"]) >= 0"
 
 release := git.IsUpToDate(current_version, pre_release := false, online_only := false)
 */
@@ -114,6 +44,9 @@ Class GithubReleases{
         this.is_online  := false
     }
 
+    /*
+    Get the releases info from "https://api.github.com/repos/username/repository/releases"
+    and saves it into a Json on the A_Temp folder*/
     GetInfo(){
         response := _GetPageContent(this.url)
         if response == "" or (not InStr(response, this.user) and not InStr(response, this.repo))
@@ -123,6 +56,13 @@ Class GithubReleases{
         this.is_online := true
     }
 
+/*
+    Returns a list of releases from the saved json.
+    set "pre_release" to false to not get releases tagged as "prerelease".
+
+    if "online_only" is set to true, GetInfo() must have been called at least once before it, else
+    the json file will be used even if it is from another session as long as it exists.
+*/
     GetListOfReleases(pre_release := false, online_only := false){
         if (online_only and this.is_online == false) or not FileExist(this.jsonPath)
             throw Error("The json is not updated or do not exist. Turn online_only to false or use GetInfo() first.")
@@ -142,6 +82,16 @@ Class GithubReleases{
         throw Error("No release found.")
     }
 
+/*
+    Returns the latest release from the json file.
+    set "pre_release" to false to not get a release tagged as "prerelease".
+
+    if "online_only" is set to true, GetInfo() must have been called at least once before it, else
+    the json file will be used even if it is from another session as long as it exists.
+
+    This is just a Qol method, the same could be achieved with "GetListOfReleases()[1]"
+    but optimized so as to not get every release before returning.
+*/
     GetLatestRelease(pre_release := false, online_only := false){
         if (online_only and this.is_online == false) or not FileExist(this.jsonPath)
             throw Error("The json is not updated or do not exist. Turn online_only to false or use GetInfo() first.")
@@ -155,6 +105,16 @@ Class GithubReleases{
         }
     }
 
+/*
+    Returns the latest release download url from the json file.
+    set "pre_release" to false to not get a release tagged as "prerelease".
+
+    if "online_only" is set to true, GetInfo() must have been called at least once before it, else
+    the json file will be used even if it is from another session as long as it exists.
+
+    This is just a Qol method, the same could be achieved with "GetLatestRelease()["download_url"]"
+    but optimized so as to not get every release's info before returning.
+*/
     GetLatestReleaseDownloadUrl(pre_release := false, online_only := false){
         if (online_only and this.is_online == false) or not FileExist(this.jsonPath)
             throw Error("The json is not updated or do not exist. Turn online_only to false or use GetInfo() first.")
@@ -168,6 +128,16 @@ Class GithubReleases{
         }
     }
 
+/*
+    Returns the latest release version from the json file.
+    set "pre_release" to false to not get a release tagged as "prerelease".
+
+    if "online_only" is set to true, GetInfo() must have been called at least once before it, else
+    the json file will be used even if it is from another session as long as it exists.
+
+    This is just a Qol method, the same could be achieved with "GetLatestRelease()["tag_name"]"
+    but optimized so as to not get every release's info before returning.
+*/
     GetLatestReleaseVersion(pre_release := false, online_only := false){
         if (online_only and this.is_online == false) or not FileExist(this.jsonPath)
             throw Error("The json is not updated or do not exist. Turn online_only to false or use GetInfo() first.")
@@ -181,6 +151,16 @@ Class GithubReleases{
         }
     }
 
+/*
+    Returns True or 1 if "current_version" is equal or higher than the latest release tag_name.
+    set "pre_release" to false to not get a release tagged as "prerelease".
+
+    if "online_only" is set to true, GetInfo() must have been called at least once before it, else
+    the json file will be used even if it is from another session as long as it exists.
+
+    This is just a Qol method, the same could be achieved with:
+    "VerCompare(current_version, GetLatestRelease()["tag_name"]) >= 0"
+*/
     IsUpToDate(current_version, pre_release := false, online_only := false){
         return VerCompare(current_version, this.GetLatestReleaseVersion(pre_release, online_only)) >= 0
     }
@@ -217,6 +197,9 @@ Class GithubReleases{
             return release
     }
 
+    /*
+    Reads the json file, converts to a Array with Maps, and returns it.
+    */
     GetJsonMap(){
         jao := FileRead(this.jsonPath, "UTF-8")
         return _Jxon_Load(&jao)
