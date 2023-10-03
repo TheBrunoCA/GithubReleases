@@ -167,13 +167,10 @@ Class GithubReleases{
     }
 
 
-    Update(install_path, release := this.GetLatestRelease(), alternative_install_path := "", auto_start := true){
+    Update(install_path, release := this.GetLatestRelease(), auto_start := true){
         Download(release["download_url"], A_Temp "\temp_" release["exe_name"])
         install_bat := BatWrite(A_Temp "\install_bat.bat")
         install_bat.TimeOut(1)
-        if alternative_install_path != ""
-            install_path := alternative_install_path
-
         install_bat.MoveFile(install_path "\" release["exe_name"], A_Temp "\old_" release["exe_name"])
         install_bat.MoveFile(A_Temp "\temp_" release["exe_name"], install_path "\" release["exe_name"])
         install_bat.TimeOut(1)
