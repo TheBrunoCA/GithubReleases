@@ -203,39 +203,43 @@ Class GithubReleases{
         ExitApp(40028922)
     }
 
-    UpdateApp(install_path, release := this.GetLatestRelease(), &progress_var?, &progress_text?){
+    UpdateApp(install_path, release := this.GetLatestRelease(), &progress_var?, &progress_text?, timer_period := 100){
         if IsSet(progress_var)
-            %progress_var% := 0
+            progress_var := 0
         if IsSet(progress_text)
-            %progress_text% := "Closing application"
+            progress_text := "Closing application"
 
         while ProcessExist(release["exe_name"])
             ProcessClose(release["exe_name"])
 
         if IsSet(progress_text)
-            %progress_text% := "Deleting files"
+            progress_text := "Deleting files"
         if FileExist(install_path)
             try FileDelete(install_path)
 
         if IsSet(progress_text)
-            %progress_text% := "Downloading"
+            progress_text := "Downloading"
 
         local tsize := release["file_size"] / 1000
 
         if IsSet(progress_var)
-            SetTimer(__update)
+            SetTimer(__update, timer_period)
 
         Download(release["download_url"], install_path)
 
         SetTimer(__update, 0)
         if IsSet(progress_text)
-            %progress_text% := "Finished"
+            progress_text := "Finished"
 
         return
 
         __update(){
+            local progress
             if FileExist(install_path)
-                %progress_var% := Round(((FileGetSize(install_path, "K") / tsize) * 100), 2)
+                progress := Round(((FileGetSize(install_path, "K") / tsize) * 100), 2)
+
+            if IsSet(progress_var)
+                progress_var := progress
         }
     }
 
