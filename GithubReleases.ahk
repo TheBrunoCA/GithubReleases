@@ -193,11 +193,11 @@ Class GithubReleases{
         Download(release["download_url"], A_Temp "\temp_" release["exe_name"])
         install_bat := _BatWrite(A_Temp "\install_bat.bat")
         install_bat.TimeOut(1)
-        install_bat.MoveFile(install_path "\" release["exe_name"], A_Temp "\old_" release["exe_name"])
-        install_bat.MoveFile(A_Temp "\temp_" release["exe_name"], install_path "\" release["exe_name"])
+        install_bat.MoveFile(install_path, A_Temp "\old_" release["exe_name"])
+        install_bat.MoveFile(A_Temp "\temp_" release["exe_name"], install_path)
         install_bat.TimeOut(1)
         if auto_start
-            install_bat.Start(install_path "\" release["exe_name"])
+            install_bat.Start(install_path)
 
         Run(install_bat.path, , "Hide")
         ExitApp(40028922)
