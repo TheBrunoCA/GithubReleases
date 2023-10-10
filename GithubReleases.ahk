@@ -37,12 +37,19 @@ release := git.IsUpToDate(current_version, pre_release := false, online_only := 
 #Warn All, StdOut
 
 Class GithubReleases{
-    __New(user, repo) {
+    __New(user, repo, auto_get := false) {
         this.user       := user
         this.repo       := repo
         this.url        := "https://api.github.com/repos/" this.user "/" this.repo "/releases"
         this.jsonPath   := A_Temp "\" this.user "-" this.repo ".json"
         this.is_online  := false
+        if auto_get and not this.HasJson(){
+            this.GetInfo()
+        }
+    }
+
+    HasJson(){
+        return FileExist(this.jsonPath)
     }
 
     /*
@@ -129,6 +136,21 @@ Class GithubReleases{
         }
     }
 
+
+
+    GetLatestReleaseExeName(pre_release := false, online_only := false){
+        if (online_only and this.is_online == false) or not FileExist(this.jsonPath)
+            throw Error("The json is not updated or do not exist. Turn online_only to false or use GetInfo() first.")
+
+        json := this.GetJsonMap()
+
+        loop json.Length{
+            if json[A_Index]["prerelease"]
+                continue
+            return json[A_Index]["assets"][1]["name"]
+        }
+    }
+
 /*
     Returns the latest release version from the json file.
     set "pre_release" to false to not get a release tagged as "prerelease".
@@ -167,9 +189,9 @@ Class GithubReleases{
     }
 
 
-    Update(install_path, release := this.GetLatestRelease(), auto_start := true){
+    UpdateItself(install_path, release := this.GetLatestRelease(), auto_start := true){
         Download(release["download_url"], A_Temp "\temp_" release["exe_name"])
-        install_bat := BatWrite(A_Temp "\install_bat.bat")
+        install_bat := _BatWrite(A_Temp "\install_bat.bat")
         install_bat.TimeOut(1)
         install_bat.MoveFile(install_path "\" release["exe_name"], A_Temp "\old_" release["exe_name"])
         install_bat.MoveFile(A_Temp "\temp_" release["exe_name"], install_path "\" release["exe_name"])
@@ -178,7 +200,43 @@ Class GithubReleases{
             install_bat.Start(install_path "\" release["exe_name"])
 
         Run(install_bat.path, , "Hide")
-        ExitApp()
+        ExitApp(40028922)
+    }
+
+    UpdateApp(install_path, release := this.GetLatestRelease(), &progress_var?, &progress_text?){
+        if IsSet(progress_var)
+            %progress_var% := 0
+        if IsSet(progress_text)
+            %progress_text% := "Closing application"
+
+        while ProcessExist(release["exe_name"])
+            ProcessClose(release["exe_name"])
+
+        if IsSet(progress_text)
+            %progress_text% := "Deleting files"
+        if FileExist(install_path)
+            try FileDelete(install_path)
+
+        if IsSet(progress_text)
+            %progress_text% := "Downloading"
+
+        local tsize := release["file_size"] / 1000
+
+        if IsSet(progress_var)
+            SetTimer(__update)
+
+        Download(release["download_url"], install_path)
+
+        SetTimer(__update, 0)
+        if IsSet(progress_text)
+            %progress_text% := "Finished"
+
+        return
+
+        __update(){
+            if FileExist(install_path)
+                %progress_var% := Round(((FileGetSize(install_path, "K") / tsize) * 100), 2)
+        }
     }
 
 
