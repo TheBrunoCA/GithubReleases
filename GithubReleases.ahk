@@ -203,11 +203,13 @@ Class GithubReleases{
         ExitApp(40028922)
     }
 
-    UpdateApp(install_path, release := this.GetLatestRelease(), &progress_var?, &progress_text?, timer_period := 100){
+    UpdateApp(install_path, release := this.GetLatestRelease(), &progress_var?, &progress_text?, progress_control?, timer_period := 100){
         if IsSet(progress_var)
             progress_var := 0
         if IsSet(progress_text)
             progress_text := "Closing application"
+        if IsSet(progress_control)
+            progress_control.Value := 0
 
         while ProcessExist(release["exe_name"])
             ProcessClose(release["exe_name"])
@@ -240,6 +242,8 @@ Class GithubReleases{
 
             if IsSet(progress_var)
                 progress_var := progress
+            if IsSet(progress_control)
+                progress_control.Value := progress
         }
     }
 
@@ -640,7 +644,7 @@ class _BatWrite {
     }
 
     /*
-     Creates a shortcut of something somewhere.
+    Creates a shortcut of something somewhere.
     */
     CreateShortcut(p_from, p_to, p_type := "Powershell"){
         if p_type != "Powershell" && p_type != "Mklink"
