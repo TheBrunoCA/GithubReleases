@@ -3,8 +3,8 @@
 
 #Include .\Lib\Logfy.ahk
 
-class GitHubReleases{
-    __New(user, repo, custom_path?, log_path?, log_append := false) {
+class GithubReleases2{
+    __New(user, repo, custom_json_path?, log_path?, log_append := false) {
         this.user                   := user
         this.repo                   := repo
         this.user_repo              := this.user "/" this.repo
@@ -19,7 +19,7 @@ class GitHubReleases{
 
         this.__default_json_path    := "{1}\{2}-{3}.json"
         this.__default_json_path    := Format(this.__default_json_path, A_Temp, this.user, this.repo)
-        this.json_path              := IsSet(custom_path) ? custom_path : this.__default_json_path
+        this.json_path              := IsSet(custom_json_path) ? custom_json_path : this.__default_json_path
 
 
         this.is_json_uptodate       := false
@@ -42,7 +42,7 @@ class GitHubReleases{
     HasJson(){
         this.log.log(Format("{1} on {2} was called.", A_ThisFunc, this.user_repo))
         local exists := FileExist(this.json_path) ? true : false
-        this.log.log(Format("{1} on {2} returned " exists ? "True" : "False", A_ThisFunc, this.user_repo))
+        this.log.log(Format("{1} on {2} returned {3}", A_ThisFunc, this.user_repo, exists ? "True" : "False"))
         return exists
     }
 
@@ -161,12 +161,7 @@ class GitHubReleases{
 
 class Release{
     __New(release_jxon) {
-        this.assets             := []
-        if release_jxon.Has("assets"){
-            for index, asset_map in release_jxon["assets"]{
-                this.assets.Push(Asset(asset_map))
-            }
-        }
+        this.assets             := Assets(release_jxon["assets"])
         this.assets_url         := release_jxon.Has("assets_url") ? release_jxon["assets_url"] : ""
         this.author             := release_jxon.Has("author") ? User(release_jxon["author"]) : ""
         this.body               := release_jxon.Has("body") ? release_jxon["body"] : ""
@@ -200,20 +195,42 @@ class Release{
     }
 }
 
-class Asset{
+Class Assets{
     __New(assets_map) {
-        this.browser_download_url   := assets_map.Has("browser_download_url") ? assets_map["browser_download_url"] : ""
-        this.content_type           := assets_map.Has("content_type") ? assets_map["content_type"] : ""
-        this.created_at             := assets_map.Has("created_at") ? assets_map["created_at"] : ""
-        this.download_count         := assets_map.Has("download_count") ? assets_map["download_count"] : ""
-        this.id                     := assets_map.Has("id") ? assets_map["id"] : ""
-        this.label                  := assets_map.Has("label") ? assets_map["label"] : ""
-        this.name                   := assets_map.Has("name") ? assets_map["name"] : ""
-        this.node_id                := assets_map.Has("node_id") ? assets_map["node_id"] : ""
-        this.size                   := assets_map.Has("size") ? assets_map["size"] : ""
-        this.updated_at             := assets_map.Has("updated_at") ? assets_map["updated_at"] : ""
-        this.uploader               := assets_map.Has("uploader") ? User(assets_map["uploader"]) : ""
-        this.url                    := assets_map.Has("url") ? assets_map["url"] : ""
+        this.list             := []
+        local map
+        for index, map in assets_map{
+            this.list.Push(Asset(map))
+        }
+    }
+
+    GetByName(exe_name){
+        local asset
+        for index, asset in this.list{
+            if not asset.HasProp("name")
+                continue
+            
+            if asset.name == exe_name
+                return asset
+        }
+        return false
+    }
+}
+
+class Asset{
+    __New(asset_map) {
+        this.browser_download_url   := asset_map.Has("browser_download_url") ? asset_map["browser_download_url"] : ""
+        this.content_type           := asset_map.Has("content_type") ? asset_map["content_type"] : ""
+        this.created_at             := asset_map.Has("created_at") ? asset_map["created_at"] : ""
+        this.download_count         := asset_map.Has("download_count") ? asset_map["download_count"] : ""
+        this.id                     := asset_map.Has("id") ? asset_map["id"] : ""
+        this.label                  := asset_map.Has("label") ? asset_map["label"] : ""
+        this.name                   := asset_map.Has("name") ? asset_map["name"] : ""
+        this.node_id                := asset_map.Has("node_id") ? asset_map["node_id"] : ""
+        this.size                   := asset_map.Has("size") ? asset_map["size"] : ""
+        this.updated_at             := asset_map.Has("updated_at") ? asset_map["updated_at"] : ""
+        this.uploader               := asset_map.Has("uploader") ? User(asset_map["uploader"]) : ""
+        this.url                    := asset_map.Has("url") ? asset_map["url"] : ""
     }
     created_at[*]{
         get => this.__created_at
@@ -265,10 +282,6 @@ class Reactions{
         this.url := reactions_map.Has("url") ? reactions_map["url"] : ""
     }
 }
-
-git := GitHubReleases("TheBrunoCA", "BuscaPMC")
-releases := git.GetReleasesList()
-
 
 ConvertGitTimeToAhkTime(git_time){
     local v         := StrSplit(git_time, "T")
@@ -508,188 +521,5 @@ _Jxon_Dump(obj, indent := "", lvl := 1) {
         obj := StrReplace(obj, '"', '\"')
 
         return '"' obj '"'
-    }
-}
-
-class _BatWrite {
-    __New(p_bat_path, p_append := false) {
-        dir := StrSplit(p_bat_path, "\")
-        dir.Pop()
-        tdir := ""
-        for i, w in dir{
-            tdir .= w . "\"
-        }
-        dir := tdir
-        if DirExist(dir) == ""
-            DirCreate(dir)
-
-        ext := StrSplit(p_bat_path, ".")
-        if ext[ext.Length] != "bat"
-            p_bat_path .= ".bat"
-
-        this.path := p_bat_path
-        if p_append == false {
-            if FileExist(this.path) != ""
-                FileDelete(this.path)
-        }
-
-        FileAppend("@CHCP 1252 >NUL`n", this.path)
-    }
-
-    /*
-    Deletes the bat itself. It will work after this. But without the encoding config.
-    */
-    DeleteSelf() {
-        if FileExist(this.path) != ""
-            FileDelete(this.path)
-    }
-
-    AddEncoding() {
-        FileAppend("@CHCP 1252 >NUL`n", this.path)
-    }
-
-    /*
-    Moves a file.
-    */
-    MoveFile(p_from, p_to) {
-        w := "
-        (
-        MOVE /Y "{1}" "{2}"
-
-        )"
-
-        w := Format(w, p_from, p_to)
-
-        FileAppend(w, this.path)
-    }
-
-    /*
-    Deletes a file.
-    */
-    DeleteFile(p_file){
-        w := "
-        (
-        DEL "{1}"
-
-        )"
-
-        w := Format(w, p_file)
-
-        FileAppend(w, this.path)
-    }
-
-    /*
-    Its a batch equivalent of Run.
-    */
-    Start(p_path){
-        w := "
-        (
-        START "" "{1}"
-
-        )"
-
-        w := Format(w, p_path)
-
-        FileAppend(w, this.path)
-    }
-
-    /*
-    Its a batch equivalent of sleep.
-    */
-    TimeOut(p_seconds){
-        w := "
-        (
-        TIMEOUT /T {1} /NOBREAK
-
-        )"
-
-        w := Format(w, p_seconds)
-
-        FileAppend(w, this.path)
-    }
-
-    /*
-    Deletes the last line of command.
-    */
-    DeleteLastLine(){
-        local file := FileRead(this.path)
-        if file == ""
-            return
-        file := StrSplit(file, "`n")
-        
-        for i in file.Length{
-            last := file.Pop()
-            if last != ""
-                break
-        }
-        local ret := ""
-        for i, w in file{
-            ret .= w . "`n"
-        }
-        try{
-            FileDelete(this.path)
-        }
-        FileAppend(ret, this.path)
-    }
-
-    /*
-    Creates a shortcut of something somewhere.
-    */
-    CreateShortcut(p_from, p_to, p_type := "Powershell"){
-        if p_type != "Powershell" && p_type != "Mklink"
-            throw Error("p_type can only be `"Powershell`" or `"Mklink`"!")
-        ext := StrSplit(p_to, ".")
-        if ext[ext.Length] != "lnk"
-            p_to .= ".lnk"
-
-        switch p_type {
-            case "Powershell":
-                {
-                    w := "
-                    (
-                    powershell "$s=(New-Object -COM WScript.Shell).CreateShortcut('{1}');$s.TargetPath='{2}';$s.Save()"
-                    
-                    )"
-                    w := Format(w, p_to, p_from)
-                    FileAppend(w, this.path)
-                }
-            default:
-                {
-                    w := "
-                    (
-                    mklink "{1}" "{2}"
-                    
-                    )"
-                    w := Format(w, p_to, p_from)
-                    FileAppend(w, this.path)
-                }
-        }
-    }
-
-    /*
-    Schedules something to run on logon. It works but the bat needs to be run as admin.
-    */
-    ScheduleOnLogon(task_name, task_path, run_level := "Limited"){
-        w := "
-        (
-        schtasks /Create /RL "{3}" /RU "NT AUTHORITY\SYSTEM" /SC ONLOGON /TN "{1}" /TR "{2}"
-
-        )"
-
-        w := Format(w, task_name, task_path, run_level)
-
-        FileAppend(w, this.path)
-    }
-
-    DeleteSchedule(task_name){
-        w := "
-        (
-        schtasks /Delete /TN "{1}"
-
-        )"
-
-        w := Format(w, task_name)
-
-        FileAppend(w, this.path)
     }
 }
